@@ -1,6 +1,60 @@
-# Deployment Guide — Vercel + Render
+# Deployment Guide
 
 Repository: https://github.com/saikumar-nadipilli/order-management-frontend-backend
+
+## Option A — Vercel Services (one project, recommended if available)
+
+Deploy **frontend + backend on the same Vercel domain** using `vercel.json` at the repo root:
+
+- Frontend: `https://your-app.vercel.app/`
+- Backend API: `https://your-app.vercel.app/_/backend`
+- No CORS issues — the browser calls `/_/backend` on the same origin
+
+### Steps
+
+1. [Vercel](https://vercel.com/) → **Add Project** → import the GitHub repo
+2. **Do not** set Root Directory to `frontend` — leave it as **repository root**
+3. In project settings, set **Framework Preset** to **Services** (required for `experimentalServices`)
+4. Confirm root `vercel.json` contains:
+
+```json
+{
+  "experimentalServices": {
+    "frontend": {
+      "entrypoint": "frontend",
+      "routePrefix": "/",
+      "framework": "vite"
+    },
+    "backend": {
+      "entrypoint": "backend/app/main.py",
+      "routePrefix": "/_/backend",
+      "framework": "fastapi"
+    }
+  }
+}
+```
+
+> If the Vercel UI shows `"root"` instead of `"entrypoint"`, that is the same idea — point it at `frontend` and `backend` (or `backend/app/main.py` for FastAPI).
+
+5. Add environment variable **`DATABASE_URL`** (required for the API):
+   - [Vercel Postgres](https://vercel.com/docs/storage/vercel-postgres), or
+   - [Neon](https://neon.tech) free PostgreSQL — paste the connection string
+6. Deploy
+7. Test:
+   - `https://YOUR-APP.vercel.app/_/backend/health`
+   - `https://YOUR-APP.vercel.app/` → use the UI
+
+Vercel auto-sets **`VITE_BACKEND_URL`** = `/_/backend` for the frontend build (no manual `VITE_API_URL` needed).
+
+Local preview with both services:
+
+```bash
+npx vercel dev -L
+```
+
+---
+
+## Option B — Vercel (frontend) + Render (backend)
 
 Deploy **backend first**, then **frontend** (frontend needs the backend URL).
 
