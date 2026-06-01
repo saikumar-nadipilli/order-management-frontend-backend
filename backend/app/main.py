@@ -1,4 +1,5 @@
 import logging
+import os
 import time
 
 from fastapi import FastAPI, HTTPException, Request
@@ -101,6 +102,22 @@ async def db_middleware(request: Request, call_next):
         if err is not None:
             return err
     return await call_next(request)
+
+
+@app.get("/config-check")
+def config_check():
+    """Safe debug: confirms DATABASE_URL is loaded (no secrets exposed)."""
+    url = settings.database_url
+    host = "not-set"
+    if "@" in url:
+        host = url.split("@", 1)[1].split("/")[0].split("?")[0]
+    return {
+        "vercel": bool(os.getenv("VERCEL")),
+        "database_url_set": bool(url) and not url.startswith("sqlite"),
+        "database_host": host,
+        "docker_default_by_mistake": "@db:" in url,
+        "env_DATABASE_URL_exists": bool(os.getenv("DATABASE_URL")),
+    }
 
 
 @app.get("/health")
