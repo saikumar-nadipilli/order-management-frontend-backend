@@ -1,8 +1,7 @@
 import logging
-import os
 import time
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
@@ -13,13 +12,10 @@ from app.routers import customers, dashboard, orders, products
 
 logger = logging.getLogger(__name__)
 
-_root_path = os.getenv("VERCEL", "") and "/_/backend" or ""
-
 app = FastAPI(
     title="Inventory & Order Management API",
     description="Production-ready API for products, customers, and orders",
     version="1.0.0",
-    root_path=_root_path,
 )
 
 app.add_middleware(
@@ -34,6 +30,19 @@ app.include_router(products.router)
 app.include_router(customers.router)
 app.include_router(orders.router)
 app.include_router(dashboard.router)
+
+_db_ready = False
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(_request: Request, exc: Exception):
+    if isinstance(exc, HTTPException):
+        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+    logger.exception("Unhandled error: %s", exc)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": str(exc), "hint": "Check DATABASE_URL on Vercel (Neon Postgres)"},
+    )
 
 
 def init_db(max_retries: int = 5, delay: float = 1.0):
@@ -59,33 +68,43 @@ def init_db(max_retries: int = 5, delay: float = 1.0):
         raise last_error
 
 
-_db_ready = False
+def _ensure_db():
+    global _db_ready
+    if _db_ready:
+        return None
+    try:
+        init_db(max_retries=3, delay=0.5)
+        _db_ready = True
+        return None
+    except Exception as exc:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "unhealthy",
+                "database": "disconnected",
+                "hint": "Add DATABASE_URL in Vercel → Settings → Environment Variables (Neon Postgres)",
+                "detail": str(exc),
+            },
+        )
 
 
 @app.on_event("startup")
 def on_startup():
-    global _db_ready
-    try:
-        init_db()
-        _db_ready = True
-    except Exception as exc:
-        logger.error("Database startup failed: %s", exc)
-        _db_ready = False
+    _ensure_db()
+
+
+@app.middleware("http")
+async def db_middleware(request: Request, call_next):
+    if request.url.path not in ("/health", "/docs", "/openapi.json", "/redoc"):
+        err = _ensure_db()
+        if err is not None:
+            return err
+    return await call_next(request)
 
 
 @app.get("/health")
 def health_check():
-    if not _db_ready:
-        try:
-            init_db(max_retries=2, delay=0.5)
-        except Exception as exc:
-            return JSONResponse(
-                status_code=503,
-                content={
-                    "status": "unhealthy",
-                    "database": "disconnected",
-                    "hint": "Set DATABASE_URL in Vercel (Neon or Vercel Postgres)",
-                    "detail": str(exc),
-                },
-            )
+    err = _ensure_db()
+    if err is not None:
+        return err
     return {"status": "healthy", "database": "connected"}
