@@ -1,9 +1,14 @@
-// Vercel Services: VITE_BACKEND_URL = "/_/backend" (same origin)
-// Production fallback if env was not injected at build time
-const API_BASE =
+// Vercel Services: VITE_BACKEND_URL = "/_/backend" (NOT the Postgres DATABASE_URL!)
+const _rawApiBase =
   import.meta.env.VITE_BACKEND_URL ||
   import.meta.env.VITE_API_URL ||
   (import.meta.env.PROD ? '/_/backend' : 'http://localhost:8000');
+
+const API_BASE =
+  typeof _rawApiBase === 'string' &&
+  (_rawApiBase.startsWith('postgresql://') || _rawApiBase.startsWith('postgres://'))
+    ? '/_/backend'
+    : _rawApiBase;
 
 async function request(path, options = {}) {
   const response = await fetch(`${API_BASE}${path}`, {
