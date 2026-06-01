@@ -1,9 +1,9 @@
-// Vercel Services: VITE_BACKEND_URL is set to "/_/backend" (same origin, no CORS)
-// Local / Render: use VITE_API_URL=http://localhost:8000 or your Render URL
+// Vercel Services: VITE_BACKEND_URL = "/_/backend" (same origin)
+// Production fallback if env was not injected at build time
 const API_BASE =
   import.meta.env.VITE_BACKEND_URL ||
   import.meta.env.VITE_API_URL ||
-  'http://localhost:8000';
+  (import.meta.env.PROD ? '/_/backend' : 'http://localhost:8000');
 
 async function request(path, options = {}) {
   const response = await fetch(`${API_BASE}${path}`, {
