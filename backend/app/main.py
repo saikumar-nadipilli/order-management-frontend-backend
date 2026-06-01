@@ -48,8 +48,11 @@ async def unhandled_exception_handler(_request: Request, exc: Exception):
 def init_db(max_retries: int = 5, delay: float = 1.0):
     """Create tables; fail fast on serverless so requests are not blocked for minutes."""
     is_sqlite = settings.database_url.startswith("sqlite")
-    if not is_sqlite and settings.database_url.startswith("postgresql://postgres:postgres@db:"):
-        logger.warning("DATABASE_URL looks like local Docker default — set a real Postgres URL on Vercel")
+    if "@db:" in settings.database_url:
+        raise RuntimeError(
+            "DATABASE_URL points to hostname 'db' (Docker only). "
+            "Set a real Postgres URL in Vercel → Settings → Environment Variables."
+        )
     retries = 1 if is_sqlite else max_retries
     last_error = None
     for attempt in range(retries):
@@ -88,9 +91,7 @@ def _ensure_db():
         )
 
 
-@app.on_event("startup")
-def on_startup():
-    _ensure_db()
+# No DB work on startup — avoids Vercel lifespan crash when DATABASE_URL is missing
 
 
 @app.middleware("http")
