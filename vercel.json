@@ -6,7 +6,7 @@
       "framework": "vite"
     },
     "backend": {
-      "entrypoint": "backend/main.py",
+      "entrypoint": "backend",
       "routePrefix": "/_/backend",
       "framework": "fastapi"
     }

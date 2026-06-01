@@ -1,0 +1,2 @@
+# Vercel installs from repo root when building the Python backend service
+-r backend/requirements.txt
