@@ -28,7 +28,8 @@ elif _db_url.startswith("postgresql"):
     _engine_kwargs["poolclass"] = NullPool
     _engine_kwargs["pool_pre_ping"] = True
 
-engine = create_engine(_db_url, connect_args=_connect_args, **_engine_kwargs)SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+engine = create_engine(_db_url, connect_args=_connect_args, **_engine_kwargs)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 
