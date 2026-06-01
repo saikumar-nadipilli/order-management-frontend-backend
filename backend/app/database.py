@@ -3,11 +3,20 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 
 from app.config import settings
 
+
+def _normalize_database_url(url: str) -> str:
+    # Render/Heroku sometimes provide postgres:// — SQLAlchemy needs postgresql://
+    if url.startswith("postgres://"):
+        return url.replace("postgres://", "postgresql://", 1)
+    return url
+
+
+_db_url = _normalize_database_url(settings.database_url)
 _connect_args = {}
-if settings.database_url.startswith("sqlite"):
+if _db_url.startswith("sqlite"):
     _connect_args["check_same_thread"] = False
 
-engine = create_engine(settings.database_url, connect_args=_connect_args)
+engine = create_engine(_db_url, connect_args=_connect_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
